@@ -1,0 +1,30 @@
+name: Update README with Gist Link
+
+# This workflow triggers when a new gist is created by the authenticated user.
+on:
+  gollum:
+    types: [gist_created]
+
+jobs:
+  update_readme:
+    # Ensure the job only runs if a gist was created, not updated.
+    if: github.event.pages[0].action == 'created'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      
+      # The 'gollum' event payload contains information about the created gist.
+      # We will access the URL and title directly from the payload.
+      - name: Append New Gist Link to README
+        run: |
+          GIST_URL="${{ github.event.pages[0].html_url }}"
+          GIST_TITLE="${{ github.event.pages[0].title }}"
+          
+          echo "## My Gists" >> README.md
+          echo "- [$GIST_TITLE]($GIST_URL)" >> README.md
+          
+      - name: Commit and Push Changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "feat: add new gist link to README"
