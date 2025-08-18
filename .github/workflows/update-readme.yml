@@ -3,7 +3,7 @@ name: Update README with New Gists
 # This workflow runs on a schedule (e.g., every hour) or can be triggered manually.
 on:
   schedule:
-    # Runs at the top of every hour
+    # Runs at the top of every hour UTC
     - cron: '0 * * * *'
   workflow_dispatch:
 
@@ -24,16 +24,16 @@ jobs:
           # It then formats the output into a JSON string
           echo "Fetching latest gists..."
           gist_data=$(gh gist list --limit 10 --json files,description,url)
-          echo "::set-output name=gist_data::$gist_data"
-
+          
+          # Write the gist data to the GITHUB_OUTPUT environment file
+          # This is the modern and correct way to pass data between steps
+          echo "gist_data=$gist_data" >> "$GITHUB_OUTPUT"
+          
       - name: Append New Gist Links to README
         run: |
           # Set a marker for the gist list
           START_MARKER="<!-- GIST LIST START -->"
           END_MARKER="<!-- GIST LIST END -->"
-          
-          # Read the current README.md to preserve content outside the marker
-          readme_content=$(cat README.md)
           
           # Remove the old gist list block if it exists
           if grep -q "$START_MARKER" README.md; then
@@ -47,14 +47,15 @@ jobs:
           echo "## My Gists" >> README.md
           
           # Use jq to parse the JSON and create Markdown links
-          # Note: The 'if' block below is not ideal but works as a simple check for a valid response
-          # A more robust solution would be to check if the 'gist_data' output is not empty or malformed
-          if [ -n "${{ steps.fetch_gists.outputs.gist_data }}" ]; then
-            echo "${{ steps.fetch_gists.outputs.gist_data }}" | jq -r '.[] | "- [\u0027\(.description)\u0027](\(.url))"' >> README.md
-          else
-            echo "- No gists found." >> README.md
-          fi
+          # It now uses a conditional to check for a description and uses the first filename if none exists
+          echo "${{ steps.fetch_gists.outputs.gist_data }}" | jq -r '
+            .[] | 
+            "- [" + 
+            if .description | length > 0 then .description else (.files | to_entries | .[0].key) end + 
+            "](" + .url + ")"
+          ' >> README.md
           
+          echo "" >> README.md
           echo "$END_MARKER" >> README.md
           
       - name: Commit and Push Changes
