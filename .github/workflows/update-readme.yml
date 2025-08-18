@@ -1,30 +1,63 @@
-name: Update README with Gist Link
+name: Update README with New Gists
 
-# This workflow triggers when a new gist is created by the authenticated user.
+# This workflow runs on a schedule (e.g., every hour) or can be triggered manually.
 on:
-  gollum:
-    types: [gist_created]
+  schedule:
+    # Runs at the top of every hour
+    - cron: '0 * * * *'
+  workflow_dispatch:
 
 jobs:
   update_readme:
-    # Ensure the job only runs if a gist was created, not updated.
-    if: github.event.pages[0].action == 'created'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
       
-      # The 'gollum' event payload contains information about the created gist.
-      # We will access the URL and title directly from the payload.
-      - name: Append New Gist Link to README
+      - name: Fetch Gist Data
+        id: fetch_gists
+        env:
+          GH_TOKEN: ${{ secrets.GH_GIST_TOKEN }}
         run: |
-          GIST_URL="${{ github.event.pages[0].html_url }}"
-          GIST_TITLE="${{ github.event.pages[0].title }}"
+          # Use the GitHub CLI to get a list of your gists
+          # The command fetches the 10 most recent gists
+          # It then formats the output into a JSON string
+          echo "Fetching latest gists..."
+          gist_data=$(gh gist list --limit 10 --json files,description,url)
+          echo "::set-output name=gist_data::$gist_data"
+
+      - name: Append New Gist Links to README
+        run: |
+          # Set a marker for the gist list
+          START_MARKER="<!-- GIST LIST START -->"
+          END_MARKER="<!-- GIST LIST END -->"
           
+          # Read the current README.md to preserve content outside the marker
+          readme_content=$(cat README.md)
+          
+          # Remove the old gist list block if it exists
+          if grep -q "$START_MARKER" README.md; then
+            awk '/<!-- GIST LIST START -->/{p=1;next}/<!-- GIST LIST END -->/{p=0}p==0' README.md > temp_readme.md
+            mv temp_readme.md README.md
+          fi
+          
+          # Add a new list of gists inside the markers
+          echo "" >> README.md
+          echo "$START_MARKER" >> README.md
           echo "## My Gists" >> README.md
-          echo "- [$GIST_TITLE]($GIST_URL)" >> README.md
+          
+          # Use jq to parse the JSON and create Markdown links
+          # Note: The 'if' block below is not ideal but works as a simple check for a valid response
+          # A more robust solution would be to check if the 'gist_data' output is not empty or malformed
+          if [ -n "${{ steps.fetch_gists.outputs.gist_data }}" ]; then
+            echo "${{ steps.fetch_gists.outputs.gist_data }}" | jq -r '.[] | "- [\u0027\(.description)\u0027](\(.url))"' >> README.md
+          else
+            echo "- No gists found." >> README.md
+          fi
+          
+          echo "$END_MARKER" >> README.md
           
       - name: Commit and Push Changes
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "feat: add new gist link to README"
+          commit_message: "chore: update README with latest gists"
