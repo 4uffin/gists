@@ -1,1 +1,0 @@
-<img src="https://raw.githubusercontent.com/4uffin/projectsspace/refs/heads/main/timecapsule/Time%20Capsule%20-%20Icon.png">
