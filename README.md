@@ -2,6 +2,8 @@
 
 *(Newest to Oldest)*
 
+[A command to play YouTube videos from the command line (at least on Linux)](https://gist.github.com/4uffin/e3a27b4777ee35e5afc7f2051f0a725e)
+
 [Zen Bluesky](https://gist.github.com/4uffin/e06965b0b7a9bd4fb561aea0d640b840)
 
 [LocalStorage](https://gist.github.com/4uffin/d4422eaa2c6037052fc5e4a8936620e4)
